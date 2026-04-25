@@ -1055,44 +1055,54 @@ function update() {
         c.floatY = Math.sin(frameCount * 0.05 + c.x) * 5;
     }
 
-    // Enemy physics & AI
+    // Enemy physics & AI - Simplified: enemies walk on platforms, no gravity
     for (const e of enemies) {
-        applyGravity(e);
-        e.y += e.vy;
-        const enemyPlat = checkPlatformCollision(e);
+        // Find the platform this enemy is on
+        let currentPlat = null;
+        for (const plat of platforms) {
+            if (plat.type === 'block' || plat.type === 'pipe') continue;
+            // Check if enemy is standing on this platform
+            const footX = e.x + e.w/2;
+            const footY = e.y + e.h;
+            if (footX >= plat.x && footX <= plat.x + plat.w &&
+                footY >= plat.y - 2 && footY <= plat.y + plat.h + 2) {
+                currentPlat = plat;
+                break;
+            }
+        }
         
-        // Only move horizontally if on ground
-        if (e.onGround) {
-            const nextX = e.x + e.vx;
-            const wouldExceedRange = nextX > e.startX + e.range || nextX < e.startX - e.range;
+        if (currentPlat) {
+            // Move horizontally
+            e.x += e.vx;
             
-            // Check if there's ground ahead
+            // Check if we should turn around (edge of platform or range exceeded)
+            const centerX = e.x + e.w/2;
+            const wouldExceedRange = centerX > e.startX + e.range || centerX < e.startX - e.range;
+            
+            // Check if there's platform ahead
+            const aheadX = e.vx > 0 ? e.x + e.w + 5 : e.x - 5;
             const groundAhead = platforms.some(plat => {
                 if (plat.type === 'block' || plat.type === 'pipe') return false;
-                const footX = nextX + e.w/2;
-                const footY = e.y + e.h + 5;
-                return footX > plat.x && footX < plat.x + plat.w &&
-                       footY >= plat.y && footY <= plat.y + plat.h + 10;
+                return aheadX >= plat.x && aheadX <= plat.x + plat.w &&
+                       Math.abs(plat.y - currentPlat.y) < 5; // Same height platform
             });
             
             if (wouldExceedRange || !groundAhead) {
                 e.vx *= -1;
                 e.direction *= -1;
-            } else {
-                e.x += e.vx;
             }
+            
+            // Keep enemy on platform surface
+            e.y = currentPlat.y - e.h;
         } else {
-            // In air, just apply horizontal movement
-            e.x += e.vx;
-        }
-        
-        // Respawn if fell
-        if (e.y > canvas.height + 200) {
-            e.x = e.startX; 
-            e.y = 200;
-            e.vy = 0;
-            e.vx = e.speed * e.direction;
-            e.onGround = false;
+            // Enemy not on platform - apply simple gravity to find one
+            e.y += 3;
+            // If fell too far, respawn at start position
+            if (e.y > canvas.height + 100) {
+                e.x = e.startX;
+                e.y = 100; // Start high and let gravity find platform
+                e.vx = e.speed * e.direction;
+            }
         }
         
         e.animTimer = (e.animTimer || 0) + 1;

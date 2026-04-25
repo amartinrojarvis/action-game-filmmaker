@@ -1058,33 +1058,50 @@ function update() {
     // Enemy physics & AI
     for (const e of enemies) {
         applyGravity(e);
-        const nextX = e.x + e.vx;
-        const wouldExceedRange = nextX > e.startX + e.range || nextX < e.startX - e.range;
-        if (wouldExceedRange && e.onGround) {
-            e.vx *= -1;
-            e.direction *= -1;
-        }
-        e.x += e.vx;
         e.y += e.vy;
         const enemyPlat = checkPlatformCollision(e);
-        if (enemyPlat && e.onGround) {
-            const centerX = e.x + e.w/2;
-            if (centerX < enemyPlat.x + 5 || centerX > enemyPlat.x + enemyPlat.w - 5) {
+        
+        // Only move horizontally if on ground
+        if (e.onGround) {
+            const nextX = e.x + e.vx;
+            const wouldExceedRange = nextX > e.startX + e.range || nextX < e.startX - e.range;
+            
+            // Check if there's ground ahead
+            const groundAhead = platforms.some(plat => {
+                if (plat.type === 'block' || plat.type === 'pipe') return false;
+                const footX = nextX + e.w/2;
+                const footY = e.y + e.h + 5;
+                return footX > plat.x && footX < plat.x + plat.w &&
+                       footY >= plat.y && footY <= plat.y + plat.h + 10;
+            });
+            
+            if (wouldExceedRange || !groundAhead) {
                 e.vx *= -1;
                 e.direction *= -1;
-                e.x += e.vx * 2;
+            } else {
+                e.x += e.vx;
             }
+        } else {
+            // In air, just apply horizontal movement
+            e.x += e.vx;
         }
+        
+        // Respawn if fell
         if (e.y > canvas.height + 200) {
-            e.x = e.startX; e.y = 200;
+            e.x = e.startX; 
+            e.y = 200;
             e.vy = 0;
             e.vx = e.speed * e.direction;
+            e.onGround = false;
         }
+        
         e.animTimer = (e.animTimer || 0) + 1;
         if (e.animTimer > 8) {
             e.animTimer = 0;
             e.animFrame = (e.animFrame || 0) + 1;
         }
+        
+        // Collision with player
         if (player.invincible === 0 &&
             player.x < e.x + e.w && player.x + player.width > e.x &&
             player.y < e.y + e.h && player.y + player.height > e.y) {

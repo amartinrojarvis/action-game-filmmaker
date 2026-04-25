@@ -1224,21 +1224,25 @@ function draw() {
         }
     }
 
-    // Collectibles
+    // Collectibles with always-visible labels
     for (const c of collectibles) {
         if (!c.collected) {
             const y = c.y + c.floatY;
             drawSpriteItem(c.x + 15, y + 15, c.type, 30);
             const label = itemLabels[c.type];
-            if (label && player.x > c.x - 100 && player.x < c.x + 100) {
-                ctx.fillStyle = 'rgba(0,0,0,0.7)';
-                ctx.fillRect(c.x - 5, y - 35, 70, 22);
-                ctx.fillStyle = '#ffd700';
+            if (label) {
                 ctx.font = 'bold 10px Arial';
-                ctx.fillText(label.name, c.x + 30, y - 22);
-                ctx.fillStyle = '#fff';
-                ctx.font = '8px Arial';
-                ctx.fillText(label.desc, c.x + 30, y - 12);
+                const textWidth = ctx.measureText(label.name).width;
+                const padding = 4;
+                const boxWidth = textWidth + padding * 2;
+                const boxHeight = 16;
+                ctx.fillStyle = 'rgba(0,0,0,0.75)';
+                ctx.fillRect(c.x + 15 - boxWidth/2, y - 25, boxWidth, boxHeight);
+                ctx.strokeStyle = '#ffd700'; ctx.lineWidth = 1;
+                ctx.strokeRect(c.x + 15 - boxWidth/2, y - 25, boxWidth, boxHeight);
+                ctx.fillStyle = '#ffd700';
+                ctx.textAlign = 'center';
+                ctx.fillText(label.name, c.x + 15, y - 14);
             }
         }
     }

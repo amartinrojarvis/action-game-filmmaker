@@ -1250,7 +1250,7 @@
                 loadLevel(level);
                 createFloatingText(canvas.width/2, canvas.height/2, `¡Nivel ${level}! 🎬`, '#4ecca3');
             } else if (level === 3 && !boss && player.x > WORLD_WIDTH - 200) {
-                showMessage('¡ÉXITO! 🏆', `¡Has completado la producción!\nPuntuación: ${score}`, 'Jugar de nuevo', startGame);
+                showVictoryScreen();
             }
             
             particles = particles.filter(p => {
@@ -1767,12 +1767,199 @@
             ctx.fillRect(1, 22, 8, 5);
         }
         
-        function gameLoop() {
-            if (!gameRunning) return;
-            update();
-            draw();
-            requestAnimationFrame(gameLoop);
+        function showVictoryScreen() {
+            gameRunning = false;
+            
+            // Victory music (MIDI-style arpeggio)
+            if (audioCtx) {
+                const notes = [523, 659, 784, 1047, 784, 1047, 1319, 1047, 784, 659, 523];
+                const durations = [0.2, 0.2, 0.2, 0.4, 0.2, 0.2, 0.4, 0.2, 0.2, 0.2, 0.6];
+                let time = audioCtx.currentTime;
+                notes.forEach((freq, i) => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(freq, time);
+                    gain.gain.setValueAtTime(0.25, time);
+                    gain.gain.exponentialRampToValueAtTime(0.01, time + durations[i]);
+                    osc.start(time);
+                    osc.stop(time + durations[i]);
+                    time += durations[i];
+                });
+                // Bass line
+                const bassNotes = [262, 262, 330, 392, 392, 330, 262];
+                let bassTime = audioCtx.currentTime;
+                bassNotes.forEach((freq, i) => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(freq, bassTime);
+                    gain.gain.setValueAtTime(0.3, bassTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, bassTime + 0.4);
+                    osc.start(bassTime);
+                    osc.stop(bassTime + 0.4);
+                    bassTime += 0.4;
+                });
+            }
+            
+            // Draw victory scene
+            let victoryFrame = 0;
+            const victoryInterval = setInterval(() => {
+                victoryFrame++;
+                ctx.fillStyle = '#0f0f23';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // Stars background
+                ctx.fillStyle = 'rgba(255,255,255,0.8)';
+                for (let i = 0; i < 100; i++) {
+                    const sx = (i * 137 + victoryFrame * 0.5) % canvas.width;
+                    const sy = (i * 93) % canvas.height;
+                    const twinkle = Math.sin(victoryFrame * 0.1 + i) * 0.5 + 0.5;
+                    ctx.globalAlpha = twinkle;
+                    ctx.fillRect(sx, sy, 2, 2);
+                }
+                ctx.globalAlpha = 1;
+                
+                // Confetti
+                for (let i = 0; i < 50; i++) {
+                    const cx = (i * 73 + victoryFrame * 2) % canvas.width;
+                    const cy = ((i * 37 + victoryFrame * 3) % (canvas.height + 50)) - 50;
+                    const colors = ['#e94560', '#ffd700', '#4ecca3', '#0d47a1', '#ff5722'];
+                    ctx.fillStyle = colors[i % colors.length];
+                    ctx.fillRect(cx, cy, 6, 6);
+                }
+                
+                // Player jumping with camera raised
+                const playerY = canvas.height/2 + 50 - Math.abs(Math.sin(victoryFrame * 0.08)) * 80;
+                const jumpAngle = Math.sin(victoryFrame * 0.08) * 0.3;
+                
+                ctx.save();
+                ctx.translate(canvas.width/2 - 50, playerY);
+                ctx.rotate(jumpAngle);
+                
+                // Body
+                ctx.fillStyle = '#2c3e50';
+                ctx.fillRect(-8, -5, 16, 20);
+                // Head
+                ctx.fillStyle = '#fdbcb4';
+                ctx.beginPath();
+                ctx.arc(0, -12, 10, 0, Math.PI * 2);
+                ctx.fill();
+                // Happy eyes
+                ctx.fillStyle = '#333';
+                ctx.fillRect(-5, -16, 4, 4);
+                ctx.fillRect(2, -16, 4, 4);
+                // Smile
+                ctx.strokeStyle = '#333';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.arc(0, -10, 4, 0.2, Math.PI - 0.2);
+                ctx.stroke();
+                // Red cap
+                ctx.fillStyle = '#e94560';
+                ctx.fillRect(-10, -22, 20, 6);
+                // Arm raised with camera
+                ctx.fillStyle = '#fdbcb4';
+                ctx.fillRect(8, -15, 4, 12);
+                ctx.fillStyle = '#1a1a1a';
+                ctx.fillRect(6, -25, 14, 10);
+                ctx.fillStyle = '#0d47a1';
+                ctx.beginPath();
+                ctx.arc(13, -20, 4, 0, Math.PI * 2);
+                ctx.fill();
+                // Flash effect
+                if (victoryFrame % 20 < 5) {
+                    ctx.fillStyle = 'rgba(255,215,0,0.5)';
+                    ctx.beginPath();
+                    ctx.arc(13, -20, 20, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                // Legs
+                ctx.fillStyle = '#34495e';
+                ctx.fillRect(-6, 12, 5, 12);
+                ctx.fillRect(1, 12, 5, 12);
+                ctx.fillStyle = '#1a1a1a';
+                ctx.fillRect(-8, 22, 8, 5);
+                ctx.fillRect(1, 22, 8, 5);
+                
+                ctx.restore();
+                
+                // Trophy
+                ctx.font = '80px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('🏆', canvas.width/2 + 80, canvas.height/2 + 20);
+                
+                // Title
+                ctx.fillStyle = '#ffd700';
+                ctx.font = 'bold 48px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('¡ENHORABUENA!', canvas.width/2, 80);
+                
+                ctx.fillStyle = '#fff';
+                ctx.font = '22px Arial';
+                ctx.fillText('Has completado la producción', canvas.width/2, 120);
+                ctx.fillText(`Puntuación final: ${score}`, canvas.width/2, 155);
+                
+                // Sponsor
+                ctx.fillStyle = 'rgba(0,0,0,0.6)';
+                ctx.fillRect(canvas.width/2 - 180, canvas.height - 120, 360, 70);
+                ctx.strokeStyle = '#e94560';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(canvas.width/2 - 180, canvas.height - 120, 360, 70);
+                
+                ctx.fillStyle = '#fff';
+                ctx.font = '14px Arial';
+                ctx.fillText('Juego patrocinado por', canvas.width/2, canvas.height - 95);
+                ctx.fillStyle = '#4ecca3';
+                ctx.font = 'bold 18px Arial';
+                ctx.fillText('iaparafilmmakers.es', canvas.width/2, canvas.height - 70);
+                
+                // Play again button
+                const btnY = canvas.height/2 + 140;
+                ctx.fillStyle = '#e94560';
+                ctx.fillRect(canvas.width/2 - 80, btnY, 160, 45);
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(canvas.width/2 - 80, btnY, 160, 45);
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 18px Arial';
+                ctx.fillText('Jugar de nuevo', canvas.width/2, btnY + 28);
+                
+                // Click handler for play again
+                canvas.onclick = (e) => {
+                    const rect = canvas.getBoundingClientRect();
+                    const mx = e.clientX - rect.left;
+                    const my = e.clientY - rect.top;
+                    if (mx > canvas.width/2 - 80 && mx < canvas.width/2 + 80 &&
+                        my > btnY && my < btnY + 45) {
+                        clearInterval(victoryInterval);
+                        canvas.onclick = null;
+                        startGame();
+                    }
+                };
+                
+                // Also handle touch
+                canvas.ontouchend = (e) => {
+                    e.preventDefault();
+                    const rect = canvas.getBoundingClientRect();
+                    const touch = e.changedTouches[0];
+                    const mx = touch.clientX - rect.left;
+                    const my = touch.clientY - rect.top;
+                    if (mx > canvas.width/2 - 80 && mx < canvas.width/2 + 80 &&
+                        my > btnY && my < btnY + 45) {
+                        clearInterval(victoryInterval);
+                        canvas.ontouchend = null;
+                        startGame();
+                    }
+                };
+                
+            }, 16);
         }
+
         
         showMessage('¡ACTION! 🎬', 'El juego del filmmaker\n¡Dispara con tu cámara y derrota al Productor!', '¡Rodar!', startGame);
     </script>
